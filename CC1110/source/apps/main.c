@@ -6,6 +6,7 @@
 #include "bsp_buttons.h"
 #include "bsp_extended.h"
 #include "uart_intfc.h"
+#include <stdlib.h>
 
 /*
 * CONSTANTS AND DEFINITIONS
@@ -41,6 +42,16 @@ static volatile uint8_t instFlag;
 static uint8_t sCurrentPwrLevel;
 static uint8_t sRequestPwrLevel;
 static uint8_t sNoAckCount = 0;
+static uint8_t ins_ini = 0;
+static uint8_t ins_end = 0;
+
+struct ringbuf {
+	char buffer[20];
+	uint8_t size;
+	uint8_t head;
+	uint8_t tail;
+	uint8_t items;
+};
 
 /*
 * LOCAL FUNCTIONS
@@ -48,12 +59,15 @@ static uint8_t sNoAckCount = 0;
 static uint8_t sRxCallback(linkID_t);
 static void main_loop(void);
 static void wait_for_link(void);
-static void process_instruction(void);
-static uint8_t check_instructions(void);
+static void process_instruction(struct ringbuf *b);
+static void check_instructions(struct ringbuf *b);
+static void init_inst_buf(struct ringbuf*);
+static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n);
 
 void main (void)
 {
 	char rxByte = 0;
+	
 	BSP_Init();
 
 	/* Init UART */
@@ -105,27 +119,102 @@ static void wait_for_link()
 /* Application logic state machine */
 static void main_loop()
 {
-	uint8_t available = 0;
+	struct ringbuf inst_buf;
+	uint8_t in_rx = 0;
+	uint8_t chars_read = 0;
+	char buf[15];
+	
+	init_inst_buf(&inst_buf);
 	while (1) {
 		if (rxFlag) {
 			/* Receive and process radio message */
 		}
-		if (available = rx_peek()) {
-			/* ins_buffer[current] <- rx_receive(available) */
+		if (in_rx = rx_peek()) {
+			if (in_rx <= 15)
+				chars_read = rx_receive(buf, in_rx);
+			else
+				chars_read = rx_receive(buf, 15);
+			append_data(&inst_buf, buf, chars_read);
 		}
-		check_instructions();
+		check_instructions(&inst_buf);
 		if (instFlag == 1) {
-			process_instruction();
+			tx_send("Found an instruction . . .\r\n",
+				sizeof("Found an instruction . . .\r\n"));
+			process_instruction(&inst_buf);
 		}
 	}
 }
 
-static uint8_t check_instructions(void)
+static void check_instructions(struct ringbuf *b)
 {
+	uint8_t i;
+	uint8_t ini = 0;
+
+	/* Search from tail up to (but not including) head */
+	for (i = b->tail; i != b->head; i = (i + 1) % b->size) {
+		if (b->buffer[i] == '?') {
+			if (ini) {
+			  	ins_ini = ini;
+				ins_end = i;
+				instFlag = 1;
+				return;
+			} else {
+				ini = i;
+			}
+		}
+	}
+	/* Search in head */
+	if (b->buffer[i] == '?') {
+		if (ini) {
+		  	ins_ini = ini;
+			ins_end = i;
+			instFlag = 1;
+			return;
+		}
+	}
 }
 
-static void process_instruction(void)
+static void process_instruction(struct ringbuf *b)
 {
+        char i;
+	uint8_t start = 0;
+	uint8_t end = 0;
+	char inst[15];
+	uint8_t j = 0;
+	
+	for (i = 0; i < 15; i++)
+		inst[i] = 0;
+	tx_send("Processing instruction . . .\r\n",
+		sizeof("Processing instruction . . .\r\n"));
+	for (i = ins_ini; i != ins_end; i = (i + 1) % b->size) {
+		if (b->buffer[i] == '?')
+			continue;
+		inst[j++] = b->buffer[i];
+	}
+	b->tail = ins_end;
+	instFlag = 0;
+	i = atoi(inst);
+	tx_send(&i, 1);
+}
+
+static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n)
+{
+	uint8_t i;
+	
+	if (n < 1)
+		return;
+	for (i = 0; i < n; i++) {
+		buf_out->buffer[buf_out->head] = buf_in[i];
+		buf_out->head = (buf_out->head + 1) % buf_out->size;
+		buf_out->items++;
+	}
+}
+
+static void init_inst_buf(struct ringbuf *buf){
+	buf->size = 20;
+	buf->head = 0;
+	buf->tail = 0;
+	buf->items = 0;
 }
 
 static uint8_t sRxCallback(linkID_t lid)
