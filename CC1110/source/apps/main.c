@@ -33,8 +33,10 @@
 #define SLAVE_BUTTON                  2
 #define BOTH_BUTTONS                  3
 
+#define RADIO_MAX_TICKS 10
+
 /*
-* LOCAL VARIABLES
+* GLOBAL VARIABLES
 */
 static linkID_t sLinkID;
 static volatile uint8_t rxFlag;
@@ -44,6 +46,8 @@ static uint8_t sRequestPwrLevel;
 static uint8_t sNoAckCount = 0;
 static uint8_t ins_ini = 0;
 static uint8_t ins_end = 0;
+static uint8_t loopticks = 0;
+static uint8_t radio_on = 1;
 
 struct ringbuf {
 	char buffer[20];
@@ -124,11 +128,42 @@ static void main_loop()
 	uint8_t in_rx = 0;
 	uint8_t chars_read = 0;
 	char buf[15];
+	uint8_t rcvmsg[5];
+	uint8_t len;
+	uint8_t i;
 	
 	init_inst_buf(&inst_buf);
 	while (1) {
+		// Turn on RX. default is RX Idle.
+		SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXON, 0);
+		/*
+		if (radio_on) {
+			// Turn on RX. default is RX Idle.
+			SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXON, 0);
+			loopticks++;
+			if (loopticks == RADIO_MAX_TICKS)
+				radio_on = 0;
+		} else {
+			// Radio IDLE to save power
+			SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXIDLE, 0);
+			loopticks--;
+			if (loopticks == 0)
+				radio_on = 1;
+		}
+		*/
 		if (rxFlag) {
 			/* Receive and process radio message */
+		        SMPL_Receive(sLinkID, rcvmsg, &len);
+			SMPL_Send(sLinkID, "OK", 2);
+			rxFlag = 0;
+			for (i = 0; i < rcvmsg[0] - 48; i++) {
+				BSP_TOGGLE_LED1();
+				BSP_TOGGLE_LED2();
+				SPIN_ABOUT_QUARTER_A_SECOND;
+				BSP_TOGGLE_LED1();
+				BSP_TOGGLE_LED2();
+				SPIN_ABOUT_QUARTER_A_SECOND;
+			}
 		}
 		if (in_rx = rx_peek()) {
 			if (in_rx <= 15)
