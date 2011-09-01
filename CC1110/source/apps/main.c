@@ -63,6 +63,7 @@ static void process_instruction(struct ringbuf *b);
 static void check_instructions(struct ringbuf *b);
 static void init_inst_buf(struct ringbuf*);
 static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n);
+static void print_rx_status(struct ringbuf *b);
 
 void main (void)
 {
@@ -145,6 +146,21 @@ static void main_loop()
 	}
 }
 
+static void print_rx_status(struct ringbuf *b)
+{
+	uint8_t head = 48 + b->head;
+	uint8_t tail = 48 + b->tail;
+	uint8_t items = 48 + b->items;
+
+	tx_send("\r\nhead: ", sizeof("\r\nhead: "));
+	tx_send(&head, 1);
+	tx_send("\r\ntail: ", sizeof("\r\ntail: "));
+	tx_send(&tail, 1);
+	tx_send("\r\nitems: ", sizeof("\r\nitems: "));
+	tx_send(&items, 1);
+	tx_send("\r\n", 2);
+}
+
 static void check_instructions(struct ringbuf *b)
 {
 	uint8_t i;
@@ -176,25 +192,44 @@ static void check_instructions(struct ringbuf *b)
 
 static void process_instruction(struct ringbuf *b)
 {
-        char i;
-	uint8_t start = 0;
-	uint8_t end = 0;
-	char inst[15];
+        uint8_t i;
+	//uint8_t start = 0;
+	//uint8_t end = 0;
+	uint8_t inst[15];
 	uint8_t j = 0;
 	
+	/* Get instruction */
 	for (i = 0; i < 15; i++)
 		inst[i] = 0;
-	tx_send("Processing instruction . . .\r\n",
-		sizeof("Processing instruction . . .\r\n"));
 	for (i = ins_ini; i != ins_end; i = (i + 1) % b->size) {
 		if (b->buffer[i] == '?')
 			continue;
 		inst[j++] = b->buffer[i];
 	}
-	b->tail = ins_end;
+	b->tail = (ins_end + 1) % b->size;
 	instFlag = 0;
-	i = atoi(inst);
-	tx_send(&i, 1);
+	b->items -= j + 2;
+	
+	/* Parse instruction */
+	//i = atoi(inst);
+	//tx_send(&i, 1);
+	
+	/* Send message */
+	for (i = 0; i < NUM_TX_RETRIES; i++) {
+		SMPL_Send(sLinkID, inst, j);
+		/* Turn on RX. default is RX Idle. */
+		SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXON, 0);
+		SPIN_ABOUT_QUARTER_A_SECOND;
+		if (rxFlag)
+			break;
+	}
+	if (rxFlag) {
+		tx_send("Data sent OK\r\n", sizeof("Data sent OK\r\n"));
+		rxFlag = 0;
+	}
+	else {
+		tx_send("No ACK\r\n", sizeof("No ACK\r\n"));
+	}
 }
 
 static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n)
@@ -208,6 +243,7 @@ static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n)
 		buf_out->head = (buf_out->head + 1) % buf_out->size;
 		buf_out->items++;
 	}
+	print_rx_status(buf_out);
 }
 
 static void init_inst_buf(struct ringbuf *buf){
@@ -223,7 +259,6 @@ static uint8_t sRxCallback(linkID_t lid)
 		rxFlag = 1;
 		/* Radio IDLE to save power */
 		SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXIDLE, 0);
-		tx_send_wait("\r\nSomething received",sizeof("\r\nSomething received"));
 	}
 	/* Leave frame to be read by application. */
 	return 0;
