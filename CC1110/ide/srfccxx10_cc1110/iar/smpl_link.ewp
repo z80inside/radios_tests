@@ -1237,7 +1237,7 @@
     <group>
       <name>application</name>
       <file>
-        <name>$PROJ_DIR$\..\..\..\source\apps\smpl_link.c</name>
+        <name>$PROJ_DIR$\..\..\..\source\apps\main.c</name>
       </file>
     </group>
     <group>

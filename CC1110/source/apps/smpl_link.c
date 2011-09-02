@@ -75,7 +75,7 @@ static void       sSlave(void);
 void main (void)
 {
   char rxByte = 0;
-  uint8_t buttonPushed;
+//  uint8_t buttonPushed;
   BSP_Init();
 
   /* Init UART */
@@ -90,7 +90,7 @@ void main (void)
   SMPL_Init(sRxCallback);
   
   tx_send_wait("\r\nSimpliciTI - Simple Peer to Peer Example with UART\r\n", sizeof("\r\nSimpliciTI - Simple Peer to Peer Example with UART\r\n")); 
-  tx_send_wait("\r\nPress Master or Slave to continue...\r\n", sizeof("\r\nPress Master or Slave to continue...\r\n")); 
+  tx_send_wait("\r\nPress 'M' for Master or 'S' for Slave...\r\n", sizeof("\r\nPress 'M' for Master or 'S' for Slave...\r\n")); 
   
   /* Turn on LEDs indicating power on */
   BSP_TURN_ON_LED1();
@@ -100,14 +100,28 @@ void main (void)
   
   BSP_TURN_OFF_LED1();
   BSP_TURN_OFF_LED2();
-  
+
+  while(true)
+  {
+    if(rx_peek())                 /* Check for any unread data in queue */
+    {
+      if(rx_receive(&rxByte, 1)) /* Pop one byte and put into 'rxByte' */
+      {
+        //tx_send(&rxByte, 1);     /* Echo user input */
+        if(rxByte == 'S' || rxByte == 'M') {
+          break;
+        }
+      }
+    }
+  }
+
   /* Enter PM3 until a button is pushed */
-  buttonPushed = BSP_SleepUntilButton( POWER_MODE_3, BOTH_BUTTONS);
+  //buttonPushed = BSP_SleepUntilButton( POWER_MODE_3, BOTH_BUTTONS);
   
-  if(buttonPushed==1)
+  if(rxByte == 'M')
     sMaster();
   
-  if(buttonPushed==2)  
+  if(rxByte == 'S')
     sSlave();
   
   while (1);
@@ -354,7 +368,3 @@ static uint8_t sRxCallback(linkID_t lid)
   /* Leave frame to be read by application. */
   return 0;
 }
-
-
-
-

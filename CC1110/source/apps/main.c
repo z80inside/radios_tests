@@ -186,6 +186,7 @@ static void print_rx_status(struct ringbuf *b)
 	uint8_t head = 48 + b->head;
 	uint8_t tail = 48 + b->tail;
 	uint8_t items = 48 + b->items;
+	uint8_t i;
 
 	tx_send("\r\nhead: ", sizeof("\r\nhead: "));
 	tx_send(&head, 1);
@@ -200,27 +201,20 @@ static void check_instructions(struct ringbuf *b)
 {
 	uint8_t i;
 	uint8_t ini = 0;
+	uint8_t foundstart = 0;
 
 	/* Search from tail up to (but not including) head */
-	for (i = b->tail; i != b->head; i = (i + 1) % b->size) {
+	for (i = b->tail; i != b->head;	i = (i + 1) % b->size) {
 		if (b->buffer[i] == '?') {
-			if (ini) {
+			if (foundstart) {
 			  	ins_ini = ini;
 				ins_end = i;
-				instFlag = 1;
+				instFlag = 1;				
 				return;
 			} else {
 				ini = i;
+				foundstart = 1;
 			}
-		}
-	}
-	/* Search in head */
-	if (b->buffer[i] == '?') {
-		if (ini) {
-		  	ins_ini = ini;
-			ins_end = i;
-			instFlag = 1;
-			return;
 		}
 	}
 }
@@ -228,8 +222,6 @@ static void check_instructions(struct ringbuf *b)
 static void process_instruction(struct ringbuf *b)
 {
         uint8_t i;
-	//uint8_t start = 0;
-	//uint8_t end = 0;
 	uint8_t inst[15];
 	uint8_t j = 0;
 	
@@ -241,13 +233,12 @@ static void process_instruction(struct ringbuf *b)
 			continue;
 		inst[j++] = b->buffer[i];
 	}
-	b->tail = (ins_end + 1) % b->size;
 	instFlag = 0;
-	b->items -= j + 2;
+	b->head = 0;
+	b->tail = 0;
+	b->items = 0;
 	
 	/* Parse instruction */
-	//i = atoi(inst);
-	//tx_send(&i, 1);
 	
 	/* Send message */
 	for (i = 0; i < NUM_TX_RETRIES; i++) {
@@ -265,6 +256,8 @@ static void process_instruction(struct ringbuf *b)
 	else {
 		tx_send("No ACK\r\n", sizeof("No ACK\r\n"));
 	}
+	for (i = 0; i < 20; i++)
+		b->buffer[i] = 0;
 }
 
 static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n)
@@ -279,6 +272,11 @@ static void append_data(struct ringbuf *buf_out, char *buf_in, uint8_t n)
 		buf_out->items++;
 	}
 	print_rx_status(buf_out);
+	for (i = 0; i < buf_out->items; i++) {
+		tx_send(&buf_out->buffer[i], 1);
+		tx_send(" - ", 3);
+	}
+	tx_send("\r\n", 2);
 }
 
 static void init_inst_buf(struct ringbuf *buf){
