@@ -1246,7 +1246,13 @@
         </excluded>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\..\..\source\apps\simp_app.c</name>
+        <name>$PROJ_DIR$\..\..\..\source\apps\simp_app_cn.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\source\apps\simp_app_en.c</name>
+        <excluded>
+          <configuration>srfccxx10_cc1110</configuration>
+        </excluded>
       </file>
     </group>
     <group>
