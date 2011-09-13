@@ -105,6 +105,7 @@ void main (void)
 {	
 	uint8_t rcvmsg[5];
 	uint8_t len;
+	uint8_t i;
 	
 	BSP_Init();
 
@@ -115,8 +116,6 @@ void main (void)
 	addr_t lAddr;
 	BSP_createRandomAddress(&lAddr);
 	SMPL_Ioctl(IOCTL_OBJ_ADDR, IOCTL_ACT_SET, &lAddr);
-	
-	/* Read the device identifier from flash memory */
 
 	/* Initialize SimpliciTI and provide Callback function */
 	SMPL_Init(sRxCallback);
@@ -130,6 +129,7 @@ void main (void)
 	BSP_TURN_OFF_LED1();
 	BSP_TURN_OFF_LED2();
 
+	/* Read the device identifier from flash memory */
 	if (!check_id()) {
 		writeFlashDMA("1234", 4);
 	}
@@ -147,9 +147,15 @@ void main (void)
 		if (rxFlag) {
 			/* Receive and process radio message */
 			SMPL_Receive(sLinkID, rcvmsg, &len);
+			tx_send("Verifying link . . .\r\n",
+				sizeof("Verifying link . . .\r\n"));
 			rxFlag = 0;
 			if (len > 0) {
-				if (strncmp(rcvmsg, "14321", 5) != 0) {
+				for (i = 0; i < len; i++) {
+					tx_send(&rcvmsg[i], 1);
+				}
+				tx_send("\r\n", 2);
+				if (strncmp(rcvmsg, "14321", 5) == 0) {
 					tx_send("Link validated\r\n",
 						sizeof("Link validated\r\n"));
 				}

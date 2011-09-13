@@ -115,8 +115,6 @@ void main (void)
 	addr_t lAddr;
 	BSP_createRandomAddress(&lAddr);
 	SMPL_Ioctl(IOCTL_OBJ_ADDR, IOCTL_ACT_SET, &lAddr);
-	
-	/* Read the device identifier from flash memory */
 
 	/* Initialize SimpliciTI and provide Callback function */
 	SMPL_Init(sRxCallback);
@@ -130,17 +128,17 @@ void main (void)
 	BSP_TURN_OFF_LED1();
 	BSP_TURN_OFF_LED2();
 
+	/* Read the device identifier from flash memory */
 	if (!check_id()) {
-		writeFlashDMA("1234", 4);
+		writeFlashDMA("4321", 4);
 	}
 	
 	/* Try to link to a remote node */
 	while (1) {
-		if (SMPL_SUCCESS == SMPL_Link(&sLinkID))
+		if (SMPL_SUCCESS == SMPL_LinkListen(&sLinkID))
 			break;
 	}
 	tx_send("Link detected . . .\r\n", sizeof("Link detected . . .\r\n"));
-	SMPL_Send(sLinkID, "11234", 5);
 	/* Turn on RX. default is RX Idle. */
 	SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXON, 0);
 	while (1) {
@@ -149,13 +147,15 @@ void main (void)
 			SMPL_Receive(sLinkID, rcvmsg, &len);
 			rxFlag = 0;
 			if (len > 0) {
-				if (strncmp(rcvmsg, "14321", 5) != 0) {
+				if (strncmp(rcvmsg, "11234", 5) != 0) {
 					tx_send("Link validated\r\n",
 						sizeof("Link validated\r\n"));
+					SMPL_Send(sLinkID, "14321", 5);
 				}
 				else {
 					tx_send("Link rejected\r\n",
 						sizeof("Link rejected\r\n"));
+					SMPL_Send(sLinkID, "14321", 5);
 				}
 			}
 		}
