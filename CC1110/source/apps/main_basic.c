@@ -153,6 +153,7 @@ static void main_loop()
 		*/
 		if (rxFlag) {
 			/* Receive and process radio message */
+			/*
 		        SMPL_Receive(sLinkID, rcvmsg, &len);
 			SMPL_Send(sLinkID, "OK", 2);
 			rxFlag = 0;
@@ -164,6 +165,7 @@ static void main_loop()
 				BSP_TOGGLE_LED2();
 				SPIN_ABOUT_QUARTER_A_SECOND;
 			}
+			*/
 		}
 		if (in_rx = rx_peek()) {
 			if (in_rx <= 15)
@@ -224,6 +226,15 @@ static void process_instruction(struct ringbuf *b)
         uint8_t i;
 	uint8_t inst[15];
 	uint8_t j = 0;
+	addr_t addr;
+	ioctlRawSend_t snd;
+	
+	for (i=0; i < NET_ADDR_SIZE; i++)
+		addr.addr[i] = 0xff;
+	snd.addr = &addr;
+	snd.msg = "hola";
+	snd.len = 4;
+	snd.port = 31;
 	
 	/* Get instruction */
 	for (i = 0; i < 15; i++)
@@ -242,7 +253,8 @@ static void process_instruction(struct ringbuf *b)
 	
 	/* Send message */
 	for (i = 0; i < NUM_TX_RETRIES; i++) {
-		SMPL_Send(sLinkID, inst, j);
+		//SMPL_Send(sLinkID, inst, j);
+		SMPL_Ioctl(IOCTL_OBJ_RAW_IO, IOCTL_ACT_WRITE, &snd);
 		/* Turn on RX. default is RX Idle. */
 		SMPL_Ioctl( IOCTL_OBJ_RADIO, IOCTL_ACT_RADIO_RXON, 0);
 		SPIN_ABOUT_QUARTER_A_SECOND;
