@@ -1237,7 +1237,16 @@
     <group>
       <name>application</name>
       <file>
-        <name>$PROJ_DIR$\..\..\..\source\apps\main.c</name>
+        <name>$PROJ_DIR$\..\..\..\source\apps\flash_asm.s51</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\source\apps\main_basic.c</name>
+        <excluded>
+          <configuration>srfccxx10_cc1110</configuration>
+        </excluded>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\..\..\source\apps\simp_app.c</name>
       </file>
     </group>
     <group>
